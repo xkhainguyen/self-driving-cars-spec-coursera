@@ -14,7 +14,7 @@ You’ll learn from a highly realistic driving environment that features 3D pede
 
 **Course 4: Motion Planning for Self-Driving Cars** 🟩
 
-## THIS IS MY REPOSITORY FOR THIS COURSE
+## THIS IS MY GOING-ON REPOSITORY FOR THIS COURSE
 It works best with the integrated Coursera Lab (a Coursera's web-based Jupyter with private graders). To run it outside, please comment unused codes.
 
 *I have consulted many sources, especially on the discussion forum. You can use my code as a reference. Please ⭐ if you find it useful.*
