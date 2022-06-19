@@ -30,10 +30,15 @@ I want to implement feedforward controller but I did not have the engine dynamic
 
 ## Lateral Control
 
-I implement Stanley controller
-
+1. Stanley controller
 - Control paramenters (k, k_d)
-- Input is desired trackpoints
-- Output is steering value
+- Find the closest track point, closest distance => cross-track error (with correct sign)
+- Note to use arctan2 and clamp some angles into -pi to +pi
+2. Pure Pursuit controller
+- Control parameters (none)
+- L = 3 meters (I do think so)
+- "alpha = yaw - yaw_l_d" is the most important step
+
+The hardest part is to determine correct sign of signals.
 
 <img src="controller_output/trajectory.png" alt="Trajectory" style="height: 500px"/>
