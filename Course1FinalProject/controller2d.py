@@ -119,7 +119,6 @@ class Controller2D(object):
         self.vars.create_var("t_previous", 0.0)
         self.vars.create_var("sum_e_v", 0.0)
         self.vars.create_var("e_v_previous", 0.0)
-        self.vars.create_var('throttle_previous', 0.0)
 
         # Skip the first frame to store previous values properly
         if self._start_control_loop:
@@ -172,7 +171,7 @@ class Controller2D(object):
 
             # Implement PID longitudinal control
 
-            Kp = 0.8
+            Kp = 1
             Ki = 0.1
             Kd = 0.05
 
@@ -203,22 +202,21 @@ class Controller2D(object):
             control_mode = 0
 
             if control_mode:    # Pure pursuit
-                L    = 3
-                xr   = (x - sqrt(L/2/(np.tan(yaw))**2 + 1))
-                yr   = (y - (x - xr)/np.tan(yaw)) 
-                # print(yaw, [x,y],[xr,yr])
-                # input("Continue")
-                vec  = np.array([waypoints[-1][0] - xr, waypoints[-1][1] - yr])
-                l_d  = np.linalg.norm(vec)
-                yaw_unit = np.array([np.cos(yaw), np.sin(yaw)])  
-                e = np.linalg.norm(np.cross(vec, yaw_unit))
-                sin_alp = e/l_d                             
-                output = np.arctan2(2*L*sin_alp, l_d)
+                L = 3   # 3 = 1.5 x 2            
+                vec_l_d = np.array([waypoints[-1][0] - x, 
+                                     waypoints[-1][1] - y])
+                yaw_l_d = np.arctan2(float(waypoints[-1][1] - y),
+                                     float(waypoints[-1][0] - x)) 
+                l_d     = np.linalg.norm(vec_l_d)
+  
+                alpha   = (yaw - yaw_l_d + self._pi)%self._2pi - self._pi                    
+                output  = -np.arctan(2*L*np.sin(alpha)/l_d)
+
                 # print(yaw_unit)
             
             else:   # Stanley controller
-                k = 2.5
-                k_s = 0.1   # softenning constant
+                k = 2.55
+                k_s = 0.2   # softenning constant
                 
                 # Heading error
                 yaw_path = np.arctan2(waypoints[-1][1] - waypoints[-2][1], 
@@ -261,4 +259,3 @@ class Controller2D(object):
         self.vars.v_previous = v  # Store forward speed to be used in next step
         self.vars.t_previous = t
         self.vars.e_v_previous = e_v
-        self.vars.throttle_previous = throttle_output
