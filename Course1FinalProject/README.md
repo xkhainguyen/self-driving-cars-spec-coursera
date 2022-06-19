@@ -20,7 +20,7 @@ The process is:
 
 ## Longitudinal Control
 
-I implement PID algorithm for one-level control in `controller2d.py`
+I implemented PID algorithm for one-level control in `controller2d.py`
 
 - Control parameters (Kp, Ki, Kd)
 - Input is desired velocity and current velocity
