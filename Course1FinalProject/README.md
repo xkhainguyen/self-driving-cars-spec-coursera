@@ -36,3 +36,4 @@ I implement Stanley controller
 - Input is desired trackpoints
 - Output is steering value
 
+<img src="controller_output/trajectory.png" alt="Trajectory" style="height: 500px"/>
