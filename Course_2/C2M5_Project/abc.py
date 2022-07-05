@@ -96,26 +96,26 @@ lidar.data = (C_li @ lidar.data.T).T + t_i_li
 # most important aspects of a filter is setting the estimated sensor variances correctly.
 # We set the values here.
 ################################################################################################
-part = '1'
+# var_imu_f = 0.10
+# var_imu_w = 0.25
+# var_gnss  = 0.01
+# var_lidar = 1.00
+# Part 1
+# var_imu_f = 0.10
+# var_imu_w = 0.1
+# var_gnss  = 0.01
+# var_lidar = 1.00
+# Part 2
+# var_imu_f = 0.10
+# var_imu_w = 0.001
+# var_gnss  = 0.01
+# var_lidar = 100
+# Part 3
+var_imu_f = 0.01
+var_imu_w = 0.01
+var_gnss  = 10.
+var_lidar = 1.
 
-if part == '1':
-    var_imu_f = 0.10
-    var_imu_w = 0.25
-    var_gnss  = 0.01
-    var_lidar = 1.0
-if part == '2':
-    var_imu_f = 0.1
-    var_imu_w = 0.25
-    var_gnss  = 0.01
-    var_lidar = 1.0
-if part =='3':
-    var_imu_f = 0.10
-    var_imu_w = 0.25
-    var_gnss  = 0.01
-    var_lidar = 1.0 
-
-R_gnss = np.diag([var_gnss]*3)
-R_lidar = np.diag([var_lidar]*3)
 ################################################################################################
 # We can also set up some constants that won't change for any iteration of our solver.
 ################################################################################################
@@ -151,18 +151,24 @@ lidar_i = 0
 ################################################################################################
 def measurement_update(sensor_var, p_cov_check, y_k, p_check, v_check, q_check):
     # 3.1 Compute Kalman Gain
-    K_k = p_cov_check@h_jac.T@np.linalg.inv((h_jac@p_cov_check@h_jac.T + sensor_var))
+    I = np.identity(3)
+    R = I * sensor_var
+    K = p_cov_check.dot(h_jac.T).dot(np.linalg.inv(h_jac.dot(p_cov_check).dot(h_jac.T) + R))
 
     # 3.2 Compute error state
-    d_x = K_k@((y_k - p_check).reshape(3))
+    error = K.dot(y_k - p_check)
 
     # 3.3 Correct predicted state
-    p_hat = p_check + d_x[:3]
-    v_hat = v_check + d_x[3:6]
-    q_hat = Quaternion(axis_angle=angle_normalize(d_x[6:])).quat_mult_left(q_check)
+    p_del = error[:3]
+    v_del = error[3:6]
+    phi_del = error[6:]
+
+    p_hat = p_check + p_del
+    v_hat = v_check + v_del
+    q_hat = Quaternion(euler=phi_del).quat_mult_right(q_check) 
 
     # 3.4 Compute corrected covariance
-    p_cov_hat = (np.identity(9) - K_k@h_jac)@p_cov_check
+    p_cov_hat = (np.identity(9) - K.dot(h_jac)).dot(p_cov_check)
 
     return p_hat, v_hat, q_hat, p_cov_hat
 
@@ -173,45 +179,49 @@ def measurement_update(sensor_var, p_cov_check, y_k, p_check, v_check, q_check):
 # for our state in a loop.
 ################################################################################################
 for k in range(1, imu_f.data.shape[0]):  # start at 1 b/c we have initial prediction from gt
-    delta_t = (imu_f.t[k] - imu_f.t[k - 1])
+    delta_t = imu_f.t[k] - imu_f.t[k - 1]
 
     # 1. Update state with IMU inputs
-    omg_dt = angle_normalize(imu_w.data[k-1]*delta_t)
-    q_km = Quaternion(*q_est[k-1])
-    C_ns = q_km.to_mat()
-    # OMG = qw*np.identity(4) + np.array([[0, -qv.T], [qv, -skew_symmetric(qv)]])
-    p = p_est[k-1] + delta_t*v_est[k-1] + 0.5*delta_t**2*(C_ns@imu_f.data[k-1] + g)
-    v = v_est[k-1] + delta_t*(C_ns@imu_f.data[k-1] + g)
-    q = q_km.quat_mult_left(Quaternion(axis_angle=omg_dt))
-    
+    rotation_matrix = Quaternion(*q_est[k-1]).to_mat()
+
     # 1.1 Linearize the motion model and compute Jacobians
-    F_km = np.identity(9)
-    F_km[:3,3:6] = np.identity(3)*delta_t
-    F_km[3:6,6:] = -skew_symmetric(C_ns@(imu_f.data[k-1].reshape(3,1)))*delta_t
+    p_est[k] = p_est[k-1] + delta_t*v_est[k-1] + (delta_t**2 / 2)*(rotation_matrix.dot(imu_f.data[k-1]) + g)
+    v_est[k] = v_est[k-1] + delta_t*(rotation_matrix.dot(imu_f.data[k-1]) + g)
+    q_est[k] = Quaternion(axis_angle=imu_w.data[k-1] * delta_t).quat_mult_right(q_est[k-1])
 
     # 2. Propagate uncertainty
-    Q_km = np.diag([var_imu_f,var_imu_f,var_imu_f,
-                                      var_imu_w,var_imu_w,var_imu_w])
-    P_k = F_km@p_cov[k-1]@F_km.T + l_jac@(delta_t**2*Q_km)@l_jac.T
+    F = np.identity(9)
+    Q = np.identity(6)
+    F[:3, 3:6] = delta_t * np.identity(3)
+    # F[3:6, 6:] = -skew_symmetric(rotation_matrix.dot(imu_f.data[k-1])) * delta_t
+    F[3:6, 6:] = -(rotation_matrix.dot(skew_symmetric(imu_f.data[k-1].reshape((3,1)))))* delta_t
+    # Q[:3, :3] = var_imu_f * delta_t**2 * np.identity(3)
+    # Q[3:, 3:] = var_imu_w * delta_t**2 * np.identity(3)
+    Q[:, :3] *= delta_t**2 * var_imu_f
+    Q[:, -3:] *= delta_t**2 * var_imu_w
+    p_cov[k] = F.dot(p_cov[k-1]).dot(F.T) + l_jac.dot(Q).dot(l_jac.T)
 
     # 3. Check availability of GNSS and LIDAR measurements
-    if (imu_f.t[k-1] in gnss.t):
-        y_k = gnss.data[np.where(gnss.t == imu_f.t[k-1])]
-        p, v, q, P_k = measurement_update(R_gnss, P_k, y_k, p, v, q)
+    # for i in range(len(gnss.t)):
+    #     if gnss.t[i] == imu_f.t[k-1]:
+    #         p_est[k], v_est[k], q_est[k], p_cov[k] = measurement_update(var_gnss, p_cov[k], gnss.data[i].T, p_est[k], v_est[k], q_est[k])
+    # for i in range(len(lidar.t)):
+    #   if lidar.t[i] == imu_f.t[k-1]:
+    #         p_est[k], v_est[k], q_est[k], p_cov[k] = measurement_update(var_lidar, p_cov[k], lidar.data[i].T, p_est[k], v_est[k], q_est[k])
+    # for i in range(len(gnss.t)):
+    #     if gnss.t[i] == imu_f.t[k-1]:
+    #         p_est[k], v_est[k], q_est[k], p_cov[k] = measurement_update(var_gnss, p_cov[k], gnss.data[i].T, p_est[k], v_est[k], q_est[k])
+    if lidar_i < lidar.t.shape[0] and lidar.t[lidar_i] == imu_f.t[k-1]:
+        p_est[k], v_est[k], q_est[k], p_cov[k] = measurement_update(var_lidar, p_cov[k], lidar.data[lidar_i].T, p_est[k], v_est[k], q_est[k])
+        lidar_i += 1
+    if gnss_i < gnss.t.shape[0] and gnss.t[gnss_i] == imu_f.t[k-1]:
+        p_est[k], v_est[k], q_est[k], p_cov[k] = measurement_update(var_gnss, p_cov[k], gnss.data[gnss_i].T, p_est[k], v_est[k], q_est[k])
         gnss_i += 1
-
-    if (imu_f.t[k-1] in lidar.t):
-        y_k = lidar.data[np.where(lidar.t == imu_f.t[k-1])]
-        p, v, q, P_k = measurement_update(R_lidar, P_k, y_k, p, v, q) 
-        lidar_i += 1   
+    
 
     # Update states (save)
-    p_est[k] = p
-    # print(p)
-    v_est[k] = v
-    q_est[k] = q
-    p_cov[k] = P_k
-print("Loop done!")
+    #already updated
+
 #### 6. Results and Analysis ###################################################################
 
 ################################################################################################
@@ -289,29 +299,29 @@ plt.show()
 # that corresponds to what we're expecting on Coursera.
 ################################################################################################
 
-if part == '1':
-    p1_indices = [9000, 9400, 9800, 10200, 10600]
-    p1_str = ''
-    for val in p1_indices:
-        for i in range(3):
-            p1_str += '%.3f ' % (p_est[val, i])
-    with open('pt1_submission.txt', 'w') as file:
-        file.write(p1_str)
+# Pt. 1 submission
+# p1_indices = [9000, 9400, 9800, 10200, 10600]
+# p1_str = ''
+# for val in p1_indices:
+#     for i in range(3):
+#         p1_str += '%.3f ' % (p_est[val, i])
+# with open('pt1_submission.txt', 'w') as file:
+#     file.write(p1_str)
 
-if part == '2':
-    p2_indices = [9000, 9400, 9800, 10200, 10600]
-    p2_str = ''
-    for val in p2_indices:
-        for i in range(3):
-            p2_str += '%.3f ' % (p_est[val, i])
-    with open('pt2_submission.txt', 'w') as file:
-        file.write(p2_str)
+# Pt. 2 submission
+# p2_indices = [9000, 9400, 9800, 10200, 10600]
+# p2_str = ''
+# for val in p2_indices:
+#     for i in range(3):
+#         p2_str += '%.3f ' % (p_est[val, i])
+# with open('pt2_submission.txt', 'w') as file:
+#     file.write(p2_str)
 
-if part == '3':
-    p3_indices = [6800, 7600, 8400, 9200, 10000]
-    p3_str = ''
-    for val in p3_indices:
-        for i in range(3):
-            p3_str += '%.3f ' % (p_est[val, i])
-    with open('pt3_submission.txt', 'w') as file:
-        file.write(p3_str)
+# Pt. 3 submission
+# p3_indices = [6800, 7600, 8400, 9200, 10000]
+# p3_str = ''
+# for val in p3_indices:
+#     for i in range(3):
+#         p3_str += '%.3f ' % (p_est[val, i])
+# with open('pt3_submission.txt', 'w') as file:
+#     file.write(p3_str)
