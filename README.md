@@ -8,7 +8,7 @@ You’ll learn from a highly realistic driving environment that features 3D pede
 
 **Course 1: Introduction to Self-Driving Cars** ✅
 
-**Course 2: State Estimation and Localization for Self-Driving Cars** 🟩
+**Course 2: State Estimation and Localization for Self-Driving Cars** ✅
 
 **Course 3: Visual Perception for Self-Driving Cars ❎ (out of my scope and time)**
 
