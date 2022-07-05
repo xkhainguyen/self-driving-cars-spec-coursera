@@ -27,26 +27,25 @@ with open('Course_2/C2M5_Project/data/pt3_data.pkl', 'rb') as file:
 #     alpha: Rotational acceleration of the vehicle, in the inertial frame
 #     w: Rotational velocity of the vehicle, in the inertial frame
 #     r: Rotational position of the vehicle, in Euler (XYZ) angles in the inertial frame
-#     _t: Timestamp in ms.
+#     _t: Timestamp in s.
 #   imu_f: StampedData object with the imu specific force data (given in vehicle frame).
 #     data: The actual data
-#     t: Timestamps in ms.
+#     t: Timestamps in s.
 #   imu_w: StampedData object with the imu rotational velocity (given in the vehicle frame).
 #     data: The actual data
-#     t: Timestamps in ms.
+#     t: Timestamps in s.
 #   gnss: StampedData object with the GNSS data.
 #     data: The actual data
-#     t: Timestamps in ms.
+#     t: Timestamps in s.
 #   lidar: StampedData object with the LIDAR data (positions only).
 #     data: The actual data
-#     t: Timestamps in ms.
+#     t: Timestamps in s.
 ################################################################################################
 gt = data['gt']
 imu_f = data['imu_f']
 imu_w = data['imu_w']
 gnss = data['gnss']
 lidar = data['lidar']
-
 ################################################################################################
 # Let's plot the ground truth trajectory to see what it looks like. When you're testing your
 # code later, feel free to comment this out.
@@ -242,6 +241,7 @@ plt.show()
 # We can also plot the error for each of the 6 DOF, with estimates for our uncertainty
 # included. The error estimates are in blue, and the uncertainty bounds are red and dashed.
 # The uncertainty bounds are +/- 3 standard deviations based on our uncertainty (covariance).
+# Three-sigma limits, 99% lie in this bounds => confidence.
 ################################################################################################
 error_fig, ax = plt.subplots(2, 3)
 error_fig.suptitle('Error Plots')
