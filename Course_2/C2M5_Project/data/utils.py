@@ -16,6 +16,7 @@ class StampedData():
         self.t = np.array(self.t)
 
 def to_rot(r):
+    # r is RPY
     Rx = np.mat([[ 1,         0,           0],
                  [ 0, cos(r[0]), -sin(r[0]) ],
                  [ 0, sin(r[0]),  cos(r[0]) ]])

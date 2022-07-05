@@ -14,7 +14,7 @@ from rotations import angle_normalize, rpy_jacobian_axis_angle, skew_symmetric, 
 # This is where you will load the data from the pickle files. For parts 1 and 2, you will use
 # p1_data.pkl. For Part 3, you will use pt3_data.pkl.
 ################################################################################################
-with open('data/pt1_data.pkl', 'rb') as file:
+with open('Course_2/C2M5_Project/data/pt1_data.pkl', 'rb') as file:
     data = pickle.load(file)
 
 ################################################################################################
@@ -51,15 +51,15 @@ lidar = data['lidar']
 # Let's plot the ground truth trajectory to see what it looks like. When you're testing your
 # code later, feel free to comment this out.
 ################################################################################################
-gt_fig = plt.figure()
-ax = gt_fig.add_subplot(111, projection='3d')
-ax.plot(gt.p[:,0], gt.p[:,1], gt.p[:,2])
-ax.set_xlabel('x [m]')
-ax.set_ylabel('y [m]')
-ax.set_zlabel('z [m]')
-ax.set_title('Ground Truth trajectory')
-ax.set_zlim(-1, 5)
-plt.show()
+# gt_fig = plt.figure()
+# ax = gt_fig.add_subplot(111, projection='3d')
+# ax.plot(gt.p[:,0], gt.p[:,1], gt.p[:,2])
+# ax.set_xlabel('x [m]')
+# ax.set_ylabel('y [m]')
+# ax.set_zlabel('z [m]')
+# ax.set_title('Ground Truth trajectory')
+# ax.set_zlim(-1, 5)
+# plt.show()
 
 ################################################################################################
 # Remember that our LIDAR data is actually just a set of positions estimated from a separate
@@ -71,18 +71,18 @@ plt.show()
 # THIS IS THE CODE YOU WILL MODIFY FOR PART 2 OF THE ASSIGNMENT.
 ################################################################################################
 # Correct calibration rotation matrix, corresponding to Euler RPY angles (0.05, 0.05, 0.1).
-C_li = np.array([
-   [ 0.99376, -0.09722,  0.05466],
-   [ 0.09971,  0.99401, -0.04475],
-   [-0.04998,  0.04992,  0.9975 ]
-])
+# C_li = np.array([
+#    [ 0.99376, -0.09722,  0.05466],
+#    [ 0.09971,  0.99401, -0.04475],
+#    [-0.04998,  0.04992,  0.9975 ]
+# ])
 
 # Incorrect calibration rotation matrix, corresponding to Euler RPY angles (0.05, 0.05, 0.05).
-# C_li = np.array([
-#      [ 0.9975 , -0.04742,  0.05235],
-#      [ 0.04992,  0.99763, -0.04742],
-#      [-0.04998,  0.04992,  0.9975 ]
-# ])
+C_li = np.array([
+     [ 0.9975 , -0.04742,  0.05235],
+     [ 0.04992,  0.99763, -0.04742],
+     [-0.04998,  0.04992,  0.9975 ]
+])
 
 t_i_li = np.array([0.5, 0.1, 0.5])
 
@@ -96,10 +96,17 @@ lidar.data = (C_li @ lidar.data.T).T + t_i_li
 # most important aspects of a filter is setting the estimated sensor variances correctly.
 # We set the values here.
 ################################################################################################
-var_imu_f = 0.10
-var_imu_w = 0.25
-var_gnss  = 0.01
-var_lidar = 1.00
+part1 = 0
+if part1:
+    var_imu_f = 0.10
+    var_imu_w = 0.25
+    var_gnss  = 0.01
+    var_lidar = 1.00
+else:
+    var_imu_f = 0.10
+    var_imu_w = 0.25
+    var_gnss  = 0.01
+    var_lidar = 1.00
 
 ################################################################################################
 # We can also set up some constants that won't change for any iteration of our solver.
@@ -136,12 +143,18 @@ lidar_i = 0
 ################################################################################################
 def measurement_update(sensor_var, p_cov_check, y_k, p_check, v_check, q_check):
     # 3.1 Compute Kalman Gain
+    K_k = p_cov_check@h_jac.T@(h_jac@p_cov_check@h_jac.T + sensor_var)
 
     # 3.2 Compute error state
+    d_x = K_k@(y_k - p_check).reshape(3)
 
     # 3.3 Correct predicted state
+    p_hat = p_check + d_x[:3]
+    v_hat = v_check + d_x[3:6]
+    q_hat = Quaternion(euler=d_x[6:]).quat_mult_left(q_check)
 
     # 3.4 Compute corrected covariance
+    p_cov_hat = (np.identity(9) - K_k@h_jac)@p_cov_check
 
     return p_hat, v_hat, q_hat, p_cov_hat
 
@@ -152,18 +165,47 @@ def measurement_update(sensor_var, p_cov_check, y_k, p_check, v_check, q_check):
 # for our state in a loop.
 ################################################################################################
 for k in range(1, imu_f.data.shape[0]):  # start at 1 b/c we have initial prediction from gt
-    delta_t = imu_f.t[k] - imu_f.t[k - 1]
+    delta_t = (imu_f.t[k] - imu_f.t[k - 1])
 
     # 1. Update state with IMU inputs
-
+    omg_dt = imu_w.data[k-1]*delta_t
+    q_km = Quaternion(*q_est[k-1])
+    C_ns = q_km.to_mat()
+    # OMG = qw*np.identity(4) + np.array([[0, -qv.T], [qv, -skew_symmetric(qv)]])
+    p = p_est[k-1] + delta_t*v_est[k-1] + 0.5*delta_t**2*(C_ns@imu_f.data[k] + g)
+    v = v_est[k-1] + delta_t*(C_ns@imu_f.data[k] + g)
+    q = q_km.quat_mult_left(Quaternion(euler=omg_dt))
+    
     # 1.1 Linearize the motion model and compute Jacobians
+    F_km = np.identity(9)
+    F_km[:3,3:6] = np.identity(3)*delta_t
+    F_km[3:6,6:] = -skew_symmetric(C_ns@imu_f.data[k])*delta_t
+    L_km = np.zeros([9,6])
+    L_km[3:,:] = np.identity(6)
 
     # 2. Propagate uncertainty
+    Q_km = np.diag([var_imu_f,var_imu_f,var_imu_f,
+                                      var_imu_w,var_imu_w,var_imu_w])
+    P_k = F_km@p_cov[k-1]@F_km.T + L_km@(delta_t**2*Q_km)@L_km.T
 
     # 3. Check availability of GNSS and LIDAR measurements
+    if (imu_f.t[k] in gnss.t):
+        R_gnss = np.diag([var_gnss]*3)
+        y_k = gnss.data[np.where(gnss.t == imu_f.t[k])]
+        p, v, q, P_k = measurement_update(R_gnss, P_k, y_k, p, v, q)
+
+    if (imu_f.t[k] in lidar.t):
+        R_lidar = np.diag([var_lidar]*3)
+        y_k = lidar.data[np.where(lidar.t == imu_f.t[k])]
+        p, v, q, P_k = measurement_update(R_lidar, P_k, y_k, p, v, q)    
 
     # Update states (save)
-
+    p_est[k] = p
+    print(p)
+    v_est[k] = v
+    q_est[k] = q
+    p_cov[k] = P_k
+print("Loop done!")
 #### 6. Results and Analysis ###################################################################
 
 ################################################################################################
