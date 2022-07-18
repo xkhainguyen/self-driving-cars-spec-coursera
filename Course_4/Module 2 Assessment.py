@@ -130,9 +130,9 @@ N = 60
 true_map = np.zeros((M, N))
 true_map[0:10, 0:10] = 1
 true_map[30:35, 40:45] = 1
-true_map[3:6,40:60] = 1;
-true_map[20:30,25:29] = 1;
-true_map[40:50,5:25] = 1;
+true_map[3:6,40:60] = 1
+true_map[20:30,25:29] = 1
+true_map[40:50,5:25] = 1
 
 # Initialize the belief map.
 # We are assuming a uniform prior.
@@ -186,12 +186,13 @@ for t in range(1, len(time_steps)):
     meas_rs.append(meas_r)
     # TODO Given our range measurements and our robot location, apply our inverse scanner model
     # to get our measure probabilities of occupancy.
-    invmod = inverse_scanner(M, N, x[0, t], x[1, t], x[2, t], meas_phi, meas_r,                          rmax, alpha, beta)
+    invmod = inverse_scanner(M, N, x[0, t], x[1, t], x[2, t], meas_phi, meas_r,\
+                                                            rmax, alpha, beta)
     invmods.append(invmod)
     
     # TODO Calculate and update the log odds of our occupancy grid, given our measured
     # occupancy probabilities from the inverse model.
-    L = np.log(invmod/(1 - invmod)) + np.log(ms[t-1]/(1 - ms[t-1])) - L0
+    L = np.log(invmod/(1 - invmod)) + L - L0
     
     # TODO Calculate a grid of probabilities from the log odds.
     m = np.exp(L)/(1 + np.exp(L))
@@ -214,7 +215,12 @@ print("{}".format(m_f[20, 15]))
 print("{}".format(m_f[25, 50]))  
 
 
-# Now that you have written your main simulation loop, you can visualize your robot motion in the true map, your measured belief map, and your occupancy grid belief map below. These are shown in the 1st, 2nd, and 3rd videos, respectively. If your 3rd video converges towards the true map shown in the 1st video, congratulations! You have completed the assignment. Please submit the output of the box above as a .txt file to the grader for this assignment.
+# Now that you have written your main simulation loop, you can visualize your 
+# robot motion in the true map, your measured belief map, and your occupancy 
+# grid belief map below. These are shown in the 1st, 2nd, and 3rd videos, 
+# respectively. If your 3rd video converges towards the true map shown in the 
+# 1st video, congratulations! You have completed the assignment. Please submit 
+# the output of the box above as a .txt file to the grader for this assignment.
 def move_figure(f, x, y):
     """Move figure's upper left corner to pixel (x, y)"""
     backend = matplotlib.get_backend()
