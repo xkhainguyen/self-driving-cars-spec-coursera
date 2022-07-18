@@ -194,15 +194,23 @@ for k in range(1, imu_f.data.shape[0]):  # start at 1 b/c we have initial predic
     P_k = F_km@p_cov[k-1]@F_km.T + l_jac@(delta_t**2*Q_km)@l_jac.T
 
     # 3. Check availability of GNSS and LIDAR measurements
-    if (imu_f.t[k-1] in gnss.t):
-        y_k = gnss.data[np.where(gnss.t == imu_f.t[k-1])]
+    # if (imu_f.t[k-1] in gnss.t):
+    #     y_k = gnss.data[np.where(gnss.t == imu_f.t[k-1])]
+    #     p, v, q, P_k = measurement_update(R_gnss, P_k, y_k, p, v, q)
+    #     gnss_i += 1
+
+    # if (imu_f.t[k-1] in lidar.t):
+    #     y_k = lidar.data[np.where(lidar.t == imu_f.t[k-1])]
+    #     p, v, q, P_k = measurement_update(R_lidar, P_k, y_k, p, v, q) 
+    #     lidar_i += 1   
+    if gnss_i < gnss.data.shape[0] and imu_f.t[k] >= gnss.t[gnss_i]:
+        y_k = gnss.data[gnss_i]
         p, v, q, P_k = measurement_update(R_gnss, P_k, y_k, p, v, q)
         gnss_i += 1
-
-    if (imu_f.t[k-1] in lidar.t):
-        y_k = lidar.data[np.where(lidar.t == imu_f.t[k-1])]
+    if lidar_i < lidar.data.shape[0] and imu_f.t[k] >= lidar.t[lidar_i]:
+        y_k = lidar.data[lidar_i]
         p, v, q, P_k = measurement_update(R_lidar, P_k, y_k, p, v, q) 
-        lidar_i += 1   
+        lidar_i += 1
 
     # Update states (save)
     p_est[k] = p
