@@ -1,6 +1,6 @@
 # Self-Driving Cars Specialization Coursera
 
-This Specialization gives you a comprehensive understanding of state-of-the-art engineering practices used in the self-driving car industry. You'll get to interact with real data sets from an autonomous vehicle (AV)―all through hands-on projects using the open source simulator CARLA.
+[This Specialization](https://www.coursera.org/specializations/self-driving-cars) gives you a comprehensive understanding of state-of-the-art engineering practices used in the self-driving car industry. You'll get to interact with real data sets from an autonomous vehicle (AV)―all through hands-on projects using the open source simulator CARLA.
 
 Throughout your courses, you’ll hear from industry experts who work at companies like Oxbotica and Zoox as they share insights about autonomous technology and how that is powering job growth within the field.
 
@@ -14,6 +14,6 @@ You’ll learn from a highly realistic driving environment that features 3D pede
 
 **Course 4: Motion Planning for Self-Driving Cars** ✅
 
-### THIS IS MY ON-GOING REPOSITORY FOR THIS COURSE (LET'S LEARN WITH [ME](https://www.linkedin.com/in/khainx/))
+### THIS IS MY ON-GOING (MAYBE COMPLETED) REPOSITORY FOR THIS COURSE (LET'S LEARN WITH [ME](https://www.linkedin.com/in/khainx/))
 
 *I have consulted many sources, especially on the discussion forum. You can use my code as a reference. Please ⭐ if you find it useful.*
